@@ -20,7 +20,7 @@ import re
 import traceback
 from itertools import chain
 from os import walk
-from os.path import join, abspath, dirname, basename, exists
+from os.path import join, abspath, dirname, basename, exists, expanduser
 from threading import Event, Timer
 
 from adapt.intent import Intent, IntentBuilder
@@ -141,7 +141,6 @@ class MycroftSkill:
         #: Mycroft global configuration. (dict)
         self.config_core = Configuration.get()
         self.dialog_renderer = None
-
         #: Filesystem access to skill specific folder.
         #: See mycroft.filesystem for details.
         self.file_system = FileSystemAccess(join('skills', self.name))
@@ -665,6 +664,9 @@ class MycroftSkill:
         3) Search the locale lang directory or other subdirectory:
              <skill>/locale/<lang>/<res_name> or
              <skill>/locale/<lang>/.../<res_name>
+        4) Search the translation_dir
+             <translations_dir>/<skill>/locale/<lang>/<res_name> or
+             <translations_dir>/<skill>/locale/<lang>/.../<res_name>
 
         Arguments:
             res_name (string): The resource name to be found
@@ -700,11 +702,30 @@ class MycroftSkill:
                 return path
 
         # New scheme:  search for res_name under the 'locale' folder
-        root_path = join(self.root_dir, 'locale', lang)
-        for path, _, files in walk(root_path):
-            if res_name in files:
-                return join(path, res_name)
+        translations_dirrectory = expanduser(self.config_core.get('skills').get('translations_dir'))
+        prefere_translations = self.config_core.get('skills').get('prefere_translations')
 
+        root_path = join(self.root_dir, 'locale', lang)
+        skill_name = self.root_dir.rsplit('/')[-1]
+        translations_path = join(translations_dirrectory, skill_name, 'locale', lang)
+        if prefere_translations:
+            if exists(translations_path):
+                for path, _, files in walk(translations_path):
+                    if res_name in files:
+                        return join(path, res_name)
+            elif exists(root_path):
+                for path, _, files in walk(root_path):
+                    if res_name in files:
+                        return join(path, res_name)
+        else:
+            if exists(root_path):
+                for path, _, files in walk(root_path):
+                    if res_name in files:
+                        return join(path, res_name)
+            elif exists(translations_path):
+                for path, _, files in walk(translations_path):
+                    if res_name in files:
+                        return join(path, res_name)
         # Not found
         return None
 
@@ -1125,7 +1146,6 @@ class MycroftSkill:
         self.load_dialog_files(root_directory)
         self.load_vocab_files(root_directory)
         self.load_regex_files(root_directory)
-        self.name
 
     def load_dialog_files(self, root_directory):
         """ Load dialog files found under root_directory.
@@ -1133,15 +1153,15 @@ class MycroftSkill:
         Arguments:
             root_directory (str): root folder to use when loading files
         """
-        translations_dirrectory = Configuration.get()['skills']['translations_dir']
-        prefere_translations = Configuration.get()['skills']['prefere_translations']
+        translations_dirrectory = expanduser(self.config_core.get('skills').get('translations_dir'))
+        prefere_translations = self.config_core.get('skills').get('prefere_translations')
         dialog_dir = join(root_directory, 'dialog', self.lang)
         locale_dir = join(root_directory, 'locale', self.lang)
-        translation_dir = join(translations_dirrectory, self.name, 'locale', self.lang)
-
+        skill_name = root_directory.rsplit('/')[-1]
+        translation_dir = join(translations_dirrectory, skill_name, 'locale', self.lang)
         if prefere_translations:
             if exists(translation_dir):
-                self.dialog_renderer = load_dialogs(locale_dir)
+                self.dialog_renderer = load_dialogs(translation_dir)
             elif exists(dialog_dir):
                 self.dialog_renderer = load_dialogs(dialog_dir)
             elif exists(locale_dir):
@@ -1164,12 +1184,13 @@ class MycroftSkill:
         Arguments:
             root_directory (str): root folder to use when loading files
         """
-        translations_dirrectory = Configuration.get()['skills']['translations_dir']
-        prefere_translations = Configuration.get()['skills']['prefere_translations']
+        translations_dirrectory = expanduser(self.config_core.get('skills').get('translations_dir'))
+        prefere_translations = self.config_core.get('skills').get('prefere_translations')
         keywords = []
         vocab_dir = join(root_directory, 'vocab', self.lang)
         locale_dir = join(root_directory, 'locale', self.lang)
-        translation_dir = join(translations_dirrectory, self.name, 'locale', self.lang)
+        skill_name = root_directory.rsplit('/')[-1]
+        translation_dir = join(translations_dirrectory, skill_name, 'locale', self.lang)
         if prefere_translations:
             if exists(translation_dir):
                 keywords = load_vocabulary(translation_dir, self.skill_id)
@@ -1203,12 +1224,13 @@ class MycroftSkill:
         Arguments:
             root_directory (str): root folder to use when loading files
         """
-        translations_dirrectory = Configuration.get()['skills']['translations_dir']
-        prefere_translations = Configuration.get()['skills']['prefere_translations']
+        translations_dirrectory = expanduser(self.config_core.get('skills').get('translations_dir'))
+        prefere_translations = self.config_core.get('skills').get('prefere_translations')
         regexes = []
         regex_dir = join(root_directory, 'regex', self.lang)
         locale_dir = join(root_directory, 'locale', self.lang)
-        translation_dir = join(translations_dirrectory, self.name, 'locale', self.lang)
+        skill_name = root_directory.rsplit('/')[-1]
+        translation_dir = join(translations_dirrectory, skill_name, 'locale', self.lang)
         if prefere_translations:
             if exists(translation_dir):
                 regexes = load_regex(translation_dir, self.skill_id)
