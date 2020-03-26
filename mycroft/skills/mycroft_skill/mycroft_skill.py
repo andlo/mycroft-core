@@ -87,7 +87,6 @@ def get_non_properties(obj):
     Returns:
         Set of attributes that are not a property.
     """
-
     def check_class(cls):
         """Find all non-properties in a class."""
         # Current class
@@ -1116,18 +1115,6 @@ class MycroftSkill:
         if not process:
             LOG.warning("Unable to play 'acknowledge' audio file!")
 
-    def init_dialog(self, root_directory):
-        # If "<skill>/dialog/<lang>" exists, load from there.  Otherwise
-        # load dialog from "<skill>/locale/<lang>"
-        dialog_dir = join(root_directory, 'dialog', self.lang)
-        if exists(dialog_dir):
-            self.dialog_renderer = load_dialogs(dialog_dir)
-        elif exists(join(root_directory, 'locale', self.lang)):
-            locale_path = join(root_directory, 'locale', self.lang)
-            self.dialog_renderer = load_dialogs(locale_path)
-        else:
-            LOG.debug('No dialog loaded')
-
     def load_data_files(self, root_directory=None):
         """Called by the skill loader to load intents, dialogs, etc.
 
@@ -1135,9 +1122,41 @@ class MycroftSkill:
             root_directory (str): root folder to use when loading files.
         """
         root_directory = root_directory or self.root_dir
-        self.init_dialog(root_directory)
+        self.load_dialog_files(root_directory)
         self.load_vocab_files(root_directory)
         self.load_regex_files(root_directory)
+        self.name
+
+    def load_dialog_files(self, root_directory):
+        """ Load dialog files found under root_directory.
+
+        Arguments:
+            root_directory (str): root folder to use when loading files
+        """
+        translations_dirrectory = Configuration.get()['skills']['translations_dir']
+        prefere_translations = Configuration.get()['skills']['prefere_translations']
+        dialog_dir = join(root_directory, 'dialog', self.lang)
+        locale_dir = join(root_directory, 'locale', self.lang)
+        translation_dir = join(translations_dirrectory, self.name, 'locale', self.lang)
+
+        if prefere_translations:
+            if exists(translation_dir):
+                self.dialog_renderer = load_dialogs(locale_dir)
+            elif exists(dialog_dir):
+                self.dialog_renderer = load_dialogs(dialog_dir)
+            elif exists(locale_dir):
+                self.dialog_renderer = load_dialogs(locale_dir)
+            else:
+                LOG.debug('No dialog loaded')
+        else:
+            if exists(dialog_dir):
+                self.dialog_renderer = load_dialogs(dialog_dir)
+            elif exists(locale_dir):
+                self.dialog_renderer = load_dialogs(locale_dir)
+            elif exists(translation_dir):
+                self.dialog_renderer = load_dialogs(translation_dir)
+            else:
+                LOG.debug('No dialog loaded')
 
     def load_vocab_files(self, root_directory):
         """ Load vocab files found under root_directory.
@@ -1145,16 +1164,30 @@ class MycroftSkill:
         Arguments:
             root_directory (str): root folder to use when loading files
         """
+        translations_dirrectory = Configuration.get()['skills']['translations_dir']
+        prefere_translations = Configuration.get()['skills']['prefere_translations']
         keywords = []
         vocab_dir = join(root_directory, 'vocab', self.lang)
         locale_dir = join(root_directory, 'locale', self.lang)
-        if exists(vocab_dir):
-            keywords = load_vocabulary(vocab_dir, self.skill_id)
-        elif exists(locale_dir):
-            keywords = load_vocabulary(locale_dir, self.skill_id)
+        translation_dir = join(translations_dirrectory, self.name, 'locale', self.lang)
+        if prefere_translations:
+            if exists(translation_dir):
+                keywords = load_vocabulary(translation_dir, self.skill_id)
+            elif exists(vocab_dir):
+                keywords = load_vocabulary(vocab_dir, self.skill_id)
+            elif exists(locale_dir):
+                keywords = load_vocabulary(locale_dir, self.skill_id)
+            else:
+                LOG.debug('No vocab loaded')
         else:
-            LOG.debug('No vocab loaded')
-
+            if exists(vocab_dir):
+                keywords = load_vocabulary(vocab_dir, self.skill_id)
+            elif exists(locale_dir):
+                keywords = load_vocabulary(locale_dir, self.skill_id)
+            elif exists(translation_dir):
+                keywords = load_vocabulary(translation_dir, self.skill_id)
+            else:
+                LOG.debug('No vocab loaded')
         # For each found intent register the default along with any aliases
         for vocab_type in keywords:
             for line in keywords[vocab_type]:
@@ -1170,13 +1203,26 @@ class MycroftSkill:
         Arguments:
             root_directory (str): root folder to use when loading files
         """
+        translations_dirrectory = Configuration.get()['skills']['translations_dir']
+        prefere_translations = Configuration.get()['skills']['prefere_translations']
         regexes = []
         regex_dir = join(root_directory, 'regex', self.lang)
         locale_dir = join(root_directory, 'locale', self.lang)
-        if exists(regex_dir):
-            regexes = load_regex(regex_dir, self.skill_id)
-        elif exists(locale_dir):
-            regexes = load_regex(locale_dir, self.skill_id)
+        translation_dir = join(translations_dirrectory, self.name, 'locale', self.lang)
+        if prefere_translations:
+            if exists(translation_dir):
+                regexes = load_regex(translation_dir, self.skill_id)
+            elif exists(regex_dir):
+                regexes = load_regex(regex_dir, self.skill_id)
+            elif exists(locale_dir):
+                regexes = load_regex(locale_dir, self.skill_id)
+        else:
+            if exists(regex_dir):
+                regexes = load_regex(regex_dir, self.skill_id)
+            elif exists(locale_dir):
+                regexes = load_regex(locale_dir, self.skill_id)
+            elif exists(translation_dir):
+                regexes = load_regex(translation_dir, self.skill_id)
 
         for regex in regexes:
             self.intent_service.register_adapt_regex(regex)
